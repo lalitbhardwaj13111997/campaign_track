@@ -1,0 +1,7 @@
+requests
+msal
+pandas
+numpy
+instaloader
+yt-dlp
+python-dotenv
