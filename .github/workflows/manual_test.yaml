@@ -1,0 +1,23 @@
+name: Manually Run Python Script
+
+on:
+  workflow_dispatch:  # Allows manual execution
+
+jobs:
+  test-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'  # Adjust as needed
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Run Python Script
+        run: python main.py
