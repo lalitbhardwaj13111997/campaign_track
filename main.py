@@ -5,7 +5,7 @@ import logging
 print(os.getcwd())
 from process_pipeline import ProcessPipeline
 
-import azure.functions as func
+
 
 
 
