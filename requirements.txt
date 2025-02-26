@@ -6,3 +6,4 @@ instaloader
 yt-dlp
 python-dotenv
 openpyxl
+google-api-python-client
