@@ -5,3 +5,4 @@ numpy
 instaloader
 yt-dlp
 python-dotenv
+openpyxl
