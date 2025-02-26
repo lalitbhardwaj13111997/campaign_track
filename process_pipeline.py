@@ -19,7 +19,8 @@ import re
 import json
 import urllib.request as req
 from datetime import datetime
-
+import random
+from googleapiclient.discovery import build
 
 # from .blob import Blob
 # from .sql import SQLServerHandler
@@ -261,37 +262,87 @@ class ProcessPipeline:
             print(f"Error extracting shortcode: {e}")
             return None
 
-    def fetch_instagram_data(self, shortcode,url):
+ 
+    def get_free_proxies(self):
+        """Fetch free proxy list from a public API."""
         try:
+            response = requests.get("https://www.proxy-list.download/api/v1/get?type=https")
+            proxies = response.text.strip().split("\r\n")
+            return proxies if proxies else []
+        except Exception as e:
+            print(f"Error fetching proxy list: {e}")
+            return []
+
+    def fetch_instagram_data(self, shortcode, url):
+        try:
+            time.sleep(5)  # Small delay to respect rate limits
+
+            proxy_list = self.get_free_proxies()
+            proxy = random.choice(proxy_list) if proxy_list else None
+            proxy_url = f"http://{proxy}" if proxy else None
+
+            if proxy_url:
+                print(f"Using Proxy: {proxy_url}")
+
             L = instaloader.Instaloader(max_connection_attempts=1)
+            if proxy_url:
+                L.context.proxy = {"http": proxy_url, "https": proxy_url}
+
             post = instaloader.Post.from_shortcode(L.context, shortcode)
             data = {
                 "Total Reach": post.owner_profile.followers,
-                "Total Views": post.video_play_count if post.is_video else 0,
+                "Total Views": post.video_view_count if post.is_video else 0,
                 "Total Likes": post.likes,
                 "Total Comments": post.comments,
             }
+
+            THRESHOLD = 1000  # Adjust as needed
             if data["Total Views"] >= THRESHOLD:
+
                 post_message_to_teams(f"Instagram post {url} reached {data['Total Views']} views!")
+
             return data
+
         except Exception as e:
             print(f"Error fetching Instagram data: {e}")
             return {"Total Reach": "", "Total Views": "", "Total Likes": "", "Total Comments": ""}
 
-    def fetch_youtube_data(self, url):
+    def fetch_youtube_data(self,video_url):
         try:
-            ydl_opts = {"quiet": True, "no_warnings": True, "simulate": True, "geo_bypass": True}
-            with YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
+            # Extract Video ID from URL
+            video_id = video_url.split("v=")[-1].split("&")[0]
+
+            # Initialize YouTube API client
+            youtube = build("youtube", "v3", developerKey="AIzaSyAjGsw_3itfcffNSFn4sVQEoCqb7-UcN0w")
+
+            # Fetch video details
+            request = youtube.videos().list(
+                part="statistics",
+                id=video_id
+            )
+            response = request.execute()
+
+            if not response["items"]:
+                print("Video not found!")
+                return {"Total Reach": "", "Total Views": "", "Total Likes": "", "Total Comments": ""}
+
+            stats = response["items"][0]["statistics"]
+
+            # Prepare the data
             data = {
-                "Total Reach": info.get("view_count", ""),
-                "Total Views": info.get("view_count", ""),
-                "Total Likes": info.get("like_count", ""),
-                "Total Comments": info.get("comment_count", ""),
+                "Total Reach": stats.get("viewCount", ""),
+                "Total Views": stats.get("viewCount", ""),
+                "Total Likes": stats.get("likeCount", ""),
+                "Total Comments": stats.get("commentCount", ""),
             }
+
+            # Check if views exceed threshold
+            THRESHOLD = 10000  # Example threshold
             if data["Total Views"] and int(data["Total Views"]) >= THRESHOLD:
-                post_message_to_teams(f"YouTube video {url} reached {data['Total Views']} views!")
+                post_message_to_teams(f"YouTube video {video_url} reached {data['Total Views']} views!")
+
             return data
+
         except Exception as e:
             print(f"Error fetching YouTube data: {e}")
             return {"Total Reach": "", "Total Views": "", "Total Likes": "", "Total Comments": ""}
@@ -486,5 +537,8 @@ class ProcessPipeline:
         print("Processed files...")
         
         
+    
+    
+
     
     
